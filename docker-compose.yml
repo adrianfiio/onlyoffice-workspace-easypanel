@@ -127,6 +127,11 @@ services:
       - document_data:/var/www/onlyoffice/DocumentServerData
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
 
+      # Corrige Mixed Content no EasyPanel/Traefik.
+      # Força HTTPS no proxy interno /ds-vpath/.
+      - ./config/onlyoffice/onlyoffice-communityserver-proxy-to-documentserver.conf:/etc/nginx/includes/onlyoffice-communityserver-proxy-to-documentserver.conf:ro
+      - ./config/onlyoffice/onlyoffice-communityserver-proxy-to-documentserver.conf:/etc/nginx/includes/onlyoffice-communityserver-proxy-to-documentserver.conf.template:ro
+
 networks:
   onlyoffice:
     driver: bridge
