@@ -4,14 +4,23 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8
+      - --collation-server=utf8_general_ci
     networks:
       - onlyoffice
     volumes:
-      - ./config/mysql/conf.d:/etc/mysql/conf.d:ro
-      - ./config/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"
+        ]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -41,6 +50,16 @@ services:
     expose:
       - "9200"
       - "9300"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9200/_cluster/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
 
   onlyoffice-document-server:
     image: onlyoffice/documentserver:8.1
@@ -54,40 +73,11 @@ services:
       - onlyoffice
     expose:
       - "80"
-      - "443"
     volumes:
       - document_data:/var/www/onlyoffice/Data
       - document_log:/var/log/onlyoffice
-      - ./document_fonts:/usr/share/fonts/truetype/custom:ro
       - document_forgotten:/var/lib/onlyoffice/documentserver/App_Data/cache/files/forgotten
-
-  onlyoffice-mail-server:
-    image: onlyoffice/mailserver:1.6.75
-    restart: always
-    privileged: true
-    hostname: ${MAIL_SERVER_HOSTNAME}
-    depends_on:
-      onlyoffice-mysql-server:
-        condition: service_healthy
-    environment:
-      MYSQL_SERVER: onlyoffice-mysql-server
-      MYSQL_SERVER_PORT: "3306"
-      MYSQL_ROOT_USER: ${MAIL_DB_USER}
-      MYSQL_ROOT_PASSWD: ${MAIL_DB_PASSWORD}
-      MYSQL_SERVER_DB_NAME: ${MAIL_DB_NAME}
-    networks:
-      - onlyoffice
-    ports:
-      - "${SMTP_PORT:-10025}:25"
-      - "${IMAP_PORT:-10143}:143"
-      - "${SUBMISSION_PORT:-10587}:587"
-    expose:
-      - "8081"
-      - "3306"
-    volumes:
-      - mail_data:/var/vmail
-      - mail_certs:/etc/pki/tls/mailserver
-      - mail_log:/var/log
+      - ./document_fonts:/usr/share/fonts/truetype/custom:ro
 
   onlyoffice-community-server:
     image: onlyoffice/communityserver:12.6.0.1900
@@ -97,14 +87,13 @@ services:
     depends_on:
       onlyoffice-mysql-server:
         condition: service_healthy
-      onlyoffice-document-server:
-        condition: service_started
-      onlyoffice-mail-server:
-        condition: service_started
       onlyoffice-elasticsearch:
+        condition: service_healthy
+      onlyoffice-document-server:
         condition: service_started
     environment:
       ONLYOFFICE_CORE_MACHINEKEY: ${CORE_MACHINE_KEY}
+
       CONTROL_PANEL_PORT_80_TCP: "80"
       CONTROL_PANEL_PORT_80_TCP_ADDR: onlyoffice-control-panel
 
@@ -119,23 +108,17 @@ services:
       MYSQL_SERVER_USER: ${MYSQL_USER}
       MYSQL_SERVER_PASS: ${MYSQL_PASSWORD}
 
-      MAIL_SERVER_API_PORT: "8081"
-      MAIL_SERVER_API_HOST: onlyoffice-mail-server
-      MAIL_SERVER_DB_HOST: onlyoffice-mysql-server
-      MAIL_SERVER_DB_PORT: "3306"
-      MAIL_SERVER_DB_NAME: ${MAIL_DB_NAME}
-      MAIL_SERVER_DB_USER: ${MAIL_DB_USER}
-      MAIL_SERVER_DB_PASS: ${MAIL_DB_PASSWORD}
-
       ELASTICSEARCH_SERVER_HOST: onlyoffice-elasticsearch
       ELASTICSEARCH_SERVER_HTTPPORT: "9200"
+
       TZ: ${TZ}
     networks:
       - onlyoffice
     ports:
       - "${COMMUNITY_HTTP_PORT:-9080}:80"
-      - "${COMMUNITY_HTTPS_PORT:-9443}:443"
-      - "${XMPP_PORT:-15222}:5222"
+    expose:
+      - "80"
+      - "5222"
     volumes:
       - community_data:/var/www/onlyoffice/Data
       - community_log:/var/log/onlyoffice
@@ -150,8 +133,6 @@ services:
     depends_on:
       onlyoffice-document-server:
         condition: service_started
-      onlyoffice-mail-server:
-        condition: service_started
       onlyoffice-community-server:
         condition: service_started
     environment:
@@ -160,7 +141,6 @@ services:
       - onlyoffice
     expose:
       - "80"
-      - "443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - controlpanel_data:/var/www/onlyoffice/Data
@@ -171,9 +151,6 @@ networks:
     driver: bridge
 
 volumes:
-  mail_data:
-  mail_certs:
-  mail_log:
   document_data:
   document_log:
   document_forgotten:
