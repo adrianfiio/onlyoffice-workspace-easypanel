@@ -1,0 +1,186 @@
+services:
+  onlyoffice-mysql-server:
+    image: mysql:8.0.29
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - onlyoffice
+    volumes:
+      - ./config/mysql/conf.d:/etc/mysql/conf.d:ro
+      - ./config/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  onlyoffice-elasticsearch:
+    image: onlyoffice/elasticsearch:7.16.3
+    restart: always
+    environment:
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true
+      indices.fielddata.cache.size: 30%
+      indices.memory.index_buffer_size: 30%
+      ingest.geoip.downloader.enabled: "false"
+    networks:
+      - onlyoffice
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    expose:
+      - "9200"
+      - "9300"
+
+  onlyoffice-document-server:
+    image: onlyoffice/documentserver:8.1
+    restart: always
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_HEADER: AuthorizationJwt
+      TZ: ${TZ}
+    networks:
+      - onlyoffice
+    expose:
+      - "80"
+      - "443"
+    volumes:
+      - document_data:/var/www/onlyoffice/Data
+      - document_log:/var/log/onlyoffice
+      - ./document_fonts:/usr/share/fonts/truetype/custom:ro
+      - document_forgotten:/var/lib/onlyoffice/documentserver/App_Data/cache/files/forgotten
+
+  onlyoffice-mail-server:
+    image: onlyoffice/mailserver:1.6.75
+    restart: always
+    privileged: true
+    hostname: ${MAIL_SERVER_HOSTNAME}
+    depends_on:
+      onlyoffice-mysql-server:
+        condition: service_healthy
+    environment:
+      MYSQL_SERVER: onlyoffice-mysql-server
+      MYSQL_SERVER_PORT: "3306"
+      MYSQL_ROOT_USER: ${MAIL_DB_USER}
+      MYSQL_ROOT_PASSWD: ${MAIL_DB_PASSWORD}
+      MYSQL_SERVER_DB_NAME: ${MAIL_DB_NAME}
+    networks:
+      - onlyoffice
+    ports:
+      - "${SMTP_PORT:-25}:25"
+      - "${IMAP_PORT:-143}:143"
+      - "${SUBMISSION_PORT:-587}:587"
+    expose:
+      - "8081"
+      - "3306"
+    volumes:
+      - mail_data:/var/vmail
+      - mail_certs:/etc/pki/tls/mailserver
+      - mail_log:/var/log
+
+  onlyoffice-community-server:
+    image: onlyoffice/communityserver:12.6.0.1900
+    restart: always
+    privileged: true
+    cgroup: host
+    depends_on:
+      onlyoffice-mysql-server:
+        condition: service_healthy
+      onlyoffice-document-server:
+        condition: service_started
+      onlyoffice-mail-server:
+        condition: service_started
+      onlyoffice-elasticsearch:
+        condition: service_started
+    environment:
+      ONLYOFFICE_CORE_MACHINEKEY: ${CORE_MACHINE_KEY}
+      CONTROL_PANEL_PORT_80_TCP: "80"
+      CONTROL_PANEL_PORT_80_TCP_ADDR: onlyoffice-control-panel
+
+      DOCUMENT_SERVER_PORT_80_TCP_ADDR: onlyoffice-document-server
+      DOCUMENT_SERVER_JWT_ENABLED: "true"
+      DOCUMENT_SERVER_JWT_SECRET: ${JWT_SECRET}
+      DOCUMENT_SERVER_JWT_HEADER: AuthorizationJwt
+
+      MYSQL_SERVER_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_SERVER_DB_NAME: ${MYSQL_DATABASE}
+      MYSQL_SERVER_HOST: onlyoffice-mysql-server
+      MYSQL_SERVER_USER: ${MYSQL_USER}
+      MYSQL_SERVER_PASS: ${MYSQL_PASSWORD}
+
+      MAIL_SERVER_API_PORT: "8081"
+      MAIL_SERVER_API_HOST: onlyoffice-mail-server
+      MAIL_SERVER_DB_HOST: onlyoffice-mysql-server
+      MAIL_SERVER_DB_PORT: "3306"
+      MAIL_SERVER_DB_NAME: ${MAIL_DB_NAME}
+      MAIL_SERVER_DB_USER: ${MAIL_DB_USER}
+      MAIL_SERVER_DB_PASS: ${MAIL_DB_PASSWORD}
+
+      ELASTICSEARCH_SERVER_HOST: onlyoffice-elasticsearch
+      ELASTICSEARCH_SERVER_HTTPPORT: "9200"
+      TZ: ${TZ}
+    networks:
+      - onlyoffice
+    ports:
+      - "${COMMUNITY_HTTP_PORT:-8080}:80"
+      - "${COMMUNITY_HTTPS_PORT:-8443}:443"
+      - "${XMPP_PORT:-5222}:5222"
+    volumes:
+      - community_data:/var/www/onlyoffice/Data
+      - community_log:/var/log/onlyoffice
+      - community_letsencrypt:/etc/letsencrypt
+      - document_data:/var/www/onlyoffice/DocumentServerData
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - ./certs:/var/www/onlyoffice/Data/certs
+
+  onlyoffice-control-panel:
+    image: onlyoffice/controlpanel:3.5.2.530
+    restart: always
+    depends_on:
+      onlyoffice-document-server:
+        condition: service_started
+      onlyoffice-mail-server:
+        condition: service_started
+      onlyoffice-community-server:
+        condition: service_started
+    environment:
+      ONLYOFFICE_CORE_MACHINEKEY: ${CORE_MACHINE_KEY}
+    networks:
+      - onlyoffice
+    expose:
+      - "80"
+      - "443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - controlpanel_data:/var/www/onlyoffice/Data
+      - controlpanel_log:/var/log/onlyoffice
+
+networks:
+  onlyoffice:
+    driver: bridge
+
+volumes:
+  mail_data:
+  mail_certs:
+  mail_log:
+  document_data:
+  document_log:
+  document_forgotten:
+  community_data:
+  community_log:
+  community_letsencrypt:
+  controlpanel_data:
+  controlpanel_log:
+  mysql_data:
+  es_data:
