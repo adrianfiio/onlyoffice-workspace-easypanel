@@ -115,8 +115,6 @@ services:
       TZ: ${TZ}
     networks:
       - onlyoffice
-    ports:
-      - "${COMMUNITY_HTTP_PORT:-9080}:80"
     expose:
       - "80"
       - "5222"
