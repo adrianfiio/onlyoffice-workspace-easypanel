@@ -113,6 +113,9 @@ services:
     networks:
       onlyoffice:
         aliases:
+          # Required when running behind EasyPanel.
+          # EasyPanel's Traefik generates the backend hostname using
+          # <project>_<service>.
           - sistemas_onlyoffice-server-work_onlyoffice-community-server
     expose:
       - "80"
