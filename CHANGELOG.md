@@ -50,3 +50,11 @@ The format is based on **Keep a Changelog** and this project follows **Semantic 
 - Persistent Docker volumes.
 - Environment variable configuration.
 - HTTPS support through EasyPanel.
+
+## [1.0.1] - 2026-07-21
+
+### Fixed
+
+- Corrigido erro "Erro ao baixar arquivo" no ONLYOFFICE Document Editor.
+- Corrigido Mixed Content em ambientes EasyPanel/Traefik com HTTPS.
+- Forçado o cabeçalho `X-Forwarded-Proto: https` no proxy `/ds-vpath/`.
