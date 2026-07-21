@@ -12,6 +12,9 @@ services:
       - --character-set-server=utf8
       - --collation-server=utf8_general_ci
       - --sql-mode=NO_ENGINE_SUBSTITUTION
+      - --max-connections=1000
+      - --max-allowed-packet=1073741824
+      - --group-concat-max-len=2048
     networks:
       - onlyoffice
     volumes:
@@ -78,7 +81,6 @@ services:
       - document_data:/var/www/onlyoffice/Data
       - document_log:/var/log/onlyoffice
       - document_forgotten:/var/lib/onlyoffice/documentserver/App_Data/cache/files/forgotten
-      - ./document_fonts:/usr/share/fonts/truetype/custom:ro
 
   onlyoffice-community-server:
     image: onlyoffice/communityserver:12.6.0.1900
@@ -124,7 +126,6 @@ services:
       - community_letsencrypt:/etc/letsencrypt
       - document_data:/var/www/onlyoffice/DocumentServerData
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - ./certs:/var/www/onlyoffice/Data/certs
 
   onlyoffice-control-panel:
     image: onlyoffice/controlpanel:3.5.2.530
