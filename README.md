@@ -57,3 +57,9 @@ Without this alias the browser will return:
 ```
 
 while the container itself is healthy.
+
+# ONLYOFFICE Workspace Docker
+
+Current Version: **1.0.1**
+
+Docker Compose deployment for ONLYOFFICE Workspace with EasyPanel compatibility.
