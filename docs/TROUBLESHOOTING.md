@@ -322,3 +322,12 @@ curl -I https://your-domain.com
 ```
 
 This information greatly speeds up troubleshooting.
+
+## Editor apresenta "Erro ao baixar arquivo"
+
+### Sintoma
+
+O portal abre normalmente, mas ao abrir ou criar um documento o editor apresenta:
+
+```text
+Erro ao baixar arquivo
