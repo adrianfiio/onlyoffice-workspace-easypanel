@@ -20,11 +20,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"
-        ]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -37,8 +33,6 @@ services:
       discovery.type: single-node
       bootstrap.memory_lock: "true"
       ES_JAVA_OPTS: -Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true
-      indices.fielddata.cache.size: 30%
-      indices.memory.index_buffer_size: 30%
       ingest.geoip.downloader.enabled: "false"
     networks:
       - onlyoffice
@@ -55,11 +49,7 @@ services:
       - "9200"
       - "9300"
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -fsS http://localhost:9200/_cluster/health || exit 1"
-        ]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 30
@@ -97,9 +87,6 @@ services:
     environment:
       ONLYOFFICE_CORE_MACHINEKEY: ${CORE_MACHINE_KEY}
 
-      CONTROL_PANEL_PORT_80_TCP: "80"
-      CONTROL_PANEL_PORT_80_TCP_ADDR: onlyoffice-control-panel
-
       DOCUMENT_SERVER_PORT_80_TCP_ADDR: onlyoffice-document-server
       DOCUMENT_SERVER_JWT_ENABLED: "true"
       DOCUMENT_SERVER_JWT_SECRET: ${JWT_SECRET}
@@ -127,25 +114,6 @@ services:
       - document_data:/var/www/onlyoffice/DocumentServerData
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
 
-  onlyoffice-control-panel:
-    image: onlyoffice/controlpanel:3.5.2.530
-    restart: always
-    depends_on:
-      onlyoffice-document-server:
-        condition: service_started
-      onlyoffice-community-server:
-        condition: service_started
-    environment:
-      ONLYOFFICE_CORE_MACHINEKEY: ${CORE_MACHINE_KEY}
-    networks:
-      - onlyoffice
-    expose:
-      - "80"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - controlpanel_data:/var/www/onlyoffice/Data
-      - controlpanel_log:/var/log/onlyoffice
-
 networks:
   onlyoffice:
     driver: bridge
@@ -157,7 +125,5 @@ volumes:
   community_data:
   community_log:
   community_letsencrypt:
-  controlpanel_data:
-  controlpanel_log:
   mysql_data:
   es_data:
