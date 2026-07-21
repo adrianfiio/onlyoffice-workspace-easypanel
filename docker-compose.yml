@@ -81,7 +81,7 @@ services:
       - document_forgotten:/var/lib/onlyoffice/documentserver/App_Data/cache/files/forgotten
 
   onlyoffice-community-server:
-    image: onlyoffice/communityserver:12.6.0.1900
+    image: onlyoffice/communityserver:12.8.0.1971
     restart: always
     privileged: true
     cgroup: host
