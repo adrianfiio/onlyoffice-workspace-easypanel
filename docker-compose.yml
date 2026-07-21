@@ -64,7 +64,7 @@ services:
       start_period: 60s
 
   onlyoffice-document-server:
-    image: onlyoffice/documentserver:8.1
+    image: onlyoffice/documentserver:9.4.0.1
     restart: always
     environment:
       JWT_ENABLED: "true"
